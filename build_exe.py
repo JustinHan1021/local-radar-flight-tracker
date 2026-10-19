@@ -80,6 +80,23 @@ EXCLUDES = [
     "unittest",
     "pydoc",
     "doctest",
+    # numba / llvmlite 本体项目从未 import，但它们若装在环境里
+    # PyInstaller 会当成潜在依赖收进来——单是 llvmlite.dll 就占 101.7 MB。
+    # 这是打包体积最大的一处浪费，实测排除后 exe 目录从 331 MB 降到 230 MB。
+    "numba",
+    "llvmlite",
+    "IPython",
+    "pytest",
+    # 纯 QWidget + QPainter 走光栅引擎，不需要软件 OpenGL 回退实现
+    "OpenGL",
+]
+
+#: 需要显式排除的二进制/数据文件（--exclude-module 管不到这些）。
+#:
+#: ``opengl32sw.dll`` 是 Qt 的软件 OpenGL 回退实现，19.7 MB。
+#: 本程序是 QWidget + QPainter 光栅绘制，不创建 OpenGL 上下文，用不到它。
+EXCLUDE_DLLS = [
+    "opengl32sw.dll",
 ]
 
 
@@ -129,12 +146,20 @@ def build(onefile: bool = True, console: bool = False) -> int:
     target = (ROOT / "dist" / f"{APP_NAME}.exe") if onefile \
         else (ROOT / "dist" / APP_NAME / f"{APP_NAME}.exe")
 
+    trimmed = _trim_binaries(ROOT / "dist")
+
     print()
     print("=" * 70)
     if target.exists():
         size_mb = target.stat().st_size / 1048576
         print(f"打包成功：{target}")
-        print(f"  体积 {size_mb:.0f} MB")
+        print(f"  主程序 {size_mb:.0f} MB")
+        if trimmed:
+            print(f"  已清理 {len(trimmed)} 个用不到的二进制：")
+            for name, mb in trimmed:
+                print(f"    {name}  {mb:.1f} MB")
+        total = sum(f.stat().st_size for f in (ROOT / "dist").rglob("*") if f.is_file())
+        print(f"  目录总计 {total / 1048576:.0f} MB")
         if onefile:
             print("  单文件模式首次启动需解包，约需 5–15 秒，之后会快一些；")
             print("  若觉得启动慢，可改用 --onedir 模式。")
@@ -145,6 +170,27 @@ def build(onefile: bool = True, console: bool = False) -> int:
         print(f"打包似乎未成功，未找到：{target}")
         return 1
     return 0
+
+
+def _trim_binaries(dist: Path) -> list[tuple[str, float]]:
+    """删除 PyInstaller 收进来但运行时用不到的二进制。
+
+    ``--exclude-module`` 只管 Python 模块，管不到已被复制进产物目录的 DLL，
+    所以这里做一次后处理。删掉的文件都有明确理由（见 EXCLUDE_DLLS），
+    且打包后应当实跑一次确认没删错。
+    """
+    removed: list[tuple[str, float]] = []
+    if not dist.exists():
+        return removed
+    for name in EXCLUDE_DLLS:
+        for path in dist.rglob(name):
+            try:
+                size_mb = path.stat().st_size / 1048576
+                path.unlink()
+                removed.append((name, size_mb))
+            except OSError as exc:
+                print(f"  警告：无法删除 {path}（{exc}）")
+    return removed
 
 
 def clean() -> None:

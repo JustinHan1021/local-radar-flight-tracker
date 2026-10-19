@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- viewport-fit=cover：底部抽屉要贴到刘海屏安全区，否则展开后最后一行会被挡住 -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="referrer" content="no-referrer">
+<title>本地雷达 · 航班追踪</title>
+<!-- 全部资源同源：CSP 是 default-src 'self'，任何外链都会被浏览器拦掉 -->
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+
+<!-- ================= 登录门 ================= -->
+<section id="login-screen" class="screen login-screen">
+  <form id="login-form" class="login-card" autocomplete="off" novalidate>
+    <h1 class="login-title">本地雷达</h1>
+    <p class="login-sub">请输入服务口令</p>
+    <label class="field">
+      <span class="field-label">口令</span>
+      <input id="login-password" class="text-input" type="password" name="password"
+             inputmode="text" autocomplete="current-password" enterkeyhint="go"
+             aria-describedby="login-error">
+    </label>
+    <button id="login-submit" class="btn btn-primary" type="submit">进入</button>
+    <p id="login-error" class="login-error" role="alert"></p>
+  </form>
+</section>
+
+<!-- ================= 主界面 ================= -->
+<div id="app-screen" class="screen app-screen" hidden>
+
+  <main class="radar-pane">
+    <canvas id="radar" class="radar-canvas" aria-label="雷达视图"></canvas>
+
+    <!-- 定位来源与服务端提示：绝对定位在盘外上沿，各自独立成行，
+         提示条不会盖住定位标签 -->
+    <div class="radar-topbar">
+      <div class="chip-row">
+        <span id="location-badge" class="chip chip-location" title="当前使用的定位来源">定位中…</span>
+        <span id="stale-badge" class="chip chip-stale" hidden>数据延迟</span>
+      </div>
+      <!-- 状态行放 DOM 而不是画进 canvas：canvas 里的文字在窄屏会和
+           操作按钮、航班标签抢位置，而 HTML 由布局引擎负责避让 -->
+      <div id="status-line" class="status-line" role="status">—</div>
+      <div id="notice-bar" class="notice-bar" role="status" hidden></div>
+    </div>
+
+    <!-- 量程常驻控件：桌面版只有滚轮缩放，手机上完全没有等价操作 -->
+    <div class="range-controls">
+      <button id="range-out" class="btn btn-round" type="button" aria-label="缩小量程">−</button>
+      <input id="range-slider" class="range-slider" type="range" min="0" max="15" step="1"
+             aria-label="量程档位">
+      <button id="range-in" class="btn btn-round" type="button" aria-label="扩大量程">+</button>
+      <output id="range-label" class="range-label" for="range-slider">—</output>
+    </div>
+
+    <div class="radar-actions">
+      <button id="recenter" class="btn" type="button">回本机</button>
+      <button id="logout" class="btn" type="button">退出</button>
+    </div>
+  </main>
+
+  <!-- 宽屏是右侧 25% 面板；窄屏由 CSS 改成底部抽屉 -->
+  <aside id="panel" class="panel">
+    <div id="sheet-handle" class="sheet-handle" role="button" tabindex="0"
+         aria-label="展开或收起面板">
+      <span class="sheet-grip"></span>
+    </div>
+
+    <nav class="tabs" role="tablist">
+      <button id="tab-list" class="tab" type="button" role="tab" aria-selected="true">榜单</button>
+      <button id="tab-detail" class="tab" type="button" role="tab" aria-selected="false">详情</button>
+      <button id="tab-settings" class="tab" type="button" role="tab" aria-selected="false">设置</button>
+    </nav>
+
+    <div class="panel-body">
+      <section id="view-list" class="panel-view" role="tabpanel">
+        <div class="panel-head"><h2 class="panel-title">最近航班</h2>
+          <span id="list-count" class="panel-note">—</span></div>
+        <ul id="flight-list" class="flight-list"></ul>
+        <p id="list-empty" class="empty-state" hidden>当前范围内没有航班</p>
+      </section>
+
+      <section id="view-detail" class="panel-view" role="tabpanel" hidden>
+        <div class="panel-head"><h2 class="panel-title">航班详情</h2></div>
+        <p id="detail-empty" class="empty-state">在雷达上点选一架航班</p>
+        <div id="detail-body" class="detail-body" hidden></div>
+      </section>
+
+      <section id="view-settings" class="panel-view" role="tabpanel" hidden>
+        <div class="panel-head"><h2 class="panel-title">设置</h2></div>
+        <div id="settings-body" class="settings-body"></div>
+        <p id="cooling-note" class="panel-note"></p>
+      </section>
+    </div>
+  </aside>
+</div>
+
+<script src="/static/app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ---- 运行态配置（含个人定位，不入库）----
+config.json
+webapp_config.json
+
+# ---- 下载与缓存数据（首次运行自动获取，合计约 95 MB)----
+# 只保留 assets/icons/ 与 assets/special_liveries.json：
+# 前者是打包用的图标源，后者是机型/涂装的小型静态表。
+assets/data/
+assets/cache/
+assets/photos/
+
+# ---- 构建产物 ----
+build/
+dist/
+*.spec
+
+# ---- 其他 ----
+*.log
+.DS_Store
+Thumbs.db

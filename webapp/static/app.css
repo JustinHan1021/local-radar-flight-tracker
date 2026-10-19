@@ -1,0 +1,428 @@
+/* 本地雷达 · 暗色军用雷达主题
+ *
+ * 调色板手抄自 app/theme.py：整体只有三个色系（深炭黑打底 + 扫描绿强调 + 琥珀黄警示），
+ * 多色拼贴会立刻显得廉价。--scan 由 config.scan_color 在运行时覆盖，
+ * 所以扫描线、量程环、强调文字必须是同一批变量，不能各自写死颜色。
+ */
+
+:root {
+  --bg: #0B0E0F;
+  --panel-bg: #12171A;
+  --card-bg: #151B1E;
+  --divider: #1F2729;
+  --border: #242E31;
+  --button-bg: #1A2225;
+  --dish: #0D1512;
+
+  --text: #B9C7C2;
+  --text-2: #6E7F7A;
+  --text-3: #4A5D57;
+
+  --aircraft: #C8D6D0;
+  --widebody: #E8C547;
+  --highlight: #5AFFC2;
+  --danger: #D9705E;
+
+  /* 扫描色默认值与 app/config.py 的 DEFAULTS["scan_color"] 一致 */
+  --scan: #3FE08A;
+
+  --ui-font: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei UI",
+             "PingFang SC", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+  --mono-font: ui-monospace, "Cascadia Mono", Consolas, "SFMono-Regular",
+               "DejaVu Sans Mono", monospace;
+
+  --sheet-h: 46dvh;
+  --gap: 10px;
+  /* 指尖最小命中面。低于这个值在手机上就是"点不中" */
+  --tap: 44px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--ui-font);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+[hidden] { display: none !important; }
+
+.screen[hidden] { display: none !important; }
+
+/* ---------------------------------------------------------------- 控件基元 */
+
+.btn {
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--button-bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  /* 触屏没有 hover，靠按下反馈确认命中 */
+  transition: background-color 90ms linear, border-color 90ms linear;
+}
+.btn:active { background: #222C30; border-color: var(--scan); }
+.btn:disabled { color: var(--text-3); cursor: default; }
+
+.btn-primary { border-color: var(--scan); color: var(--scan); }
+.btn-round {
+  padding: 0;
+  width: var(--tap);
+  border-radius: 50%;
+  font-size: 22px;
+  line-height: 1;
+  font-family: var(--mono-font);
+}
+
+.text-input {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 16px; /* 16px 以上 iOS 才不会在聚焦时自动放大整页 */
+}
+.text-input:focus, .btn:focus-visible {
+  outline: 2px solid var(--scan);
+  outline-offset: 1px;
+}
+
+.field { display: block; margin-bottom: 12px; }
+.field-label { display: block; margin-bottom: 6px; color: var(--text-2); font-size: 12px; }
+
+select.text-input { appearance: none; padding-right: 28px; }
+
+/* ---------------------------------------------------------------- 登录门 */
+
+.login-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 24px;
+}
+.login-card {
+  width: 100%;
+  max-width: 340px;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel-bg);
+}
+.login-title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: var(--scan);
+}
+.login-sub { margin: 0 0 18px; color: var(--text-2); font-size: 13px; }
+.login-card .btn-primary { width: 100%; margin-top: 6px; }
+.login-error { min-height: 20px; margin: 12px 0 0; color: var(--danger); font-size: 13px; }
+
+/* ---------------------------------------------------------------- 主布局 */
+
+.app-screen {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(300px, 1fr);
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.radar-pane {
+  position: relative;
+  min-width: 0;
+  background: var(--bg);
+  overflow: hidden;
+  touch-action: none; /* 捏合缩放要独占手势，否则会被浏览器当页面缩放 */
+}
+
+.radar-canvas { display: block; width: 100%; height: 100%; }
+
+.radar-topbar {
+  position: absolute;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 10px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  pointer-events: none;
+}
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(18, 23, 26, 0.82);
+  color: var(--text-2);
+  font-size: 12px;
+  font-family: var(--mono-font);
+  white-space: nowrap;
+}
+.chip-location { color: var(--text); }
+/* 定位全部失败、退到兜底坐标时把标签标黄：此时圆心多半是错的 */
+.chip-fallback { border-color: var(--widebody); color: var(--widebody); }
+.chip-stale { border-color: var(--widebody); color: var(--widebody); }
+
+/* 数据源 · 架数 · 量程 · 更新时间。用等宽字体对齐秒数，
+   避免每次刷新时数字宽度变化导致整行抖动。 */
+.status-line {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: rgba(11, 14, 15, 0.55);
+  color: var(--scan, #3FE08A);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, "SFMono-Regular", monospace;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  opacity: 0.92;
+}
+
+.notice-bar {
+  align-self: stretch;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--widebody);
+  border-radius: 6px;
+  background: rgba(18, 23, 26, 0.9);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.range-controls {
+  position: absolute;
+  left: 10px;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(18, 23, 26, 0.86);
+}
+.range-slider {
+  width: 128px;
+  height: var(--tap);
+  background: transparent;
+  accent-color: var(--scan);
+}
+.range-label {
+  min-width: 62px;
+  color: var(--scan);
+  font-family: var(--mono-font);
+  font-size: 12px;
+  text-align: right;
+}
+
+.radar-actions {
+  position: absolute;
+  right: 10px;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  display: flex;
+  gap: 8px;
+}
+
+/* ---------------------------------------------------------------- 面板 */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel-bg);
+  border-left: 1px solid var(--divider);
+  z-index: 3;
+}
+/* 拖动过程中必须跟手，过渡会把位移拖成橡皮筋 */
+.panel.dragging { transition: none; }
+
+.sheet-handle {
+  display: none; /* 宽屏没有抽屉 */
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  flex: none;
+  cursor: grab;
+  touch-action: none;
+}
+.sheet-grip { width: 40px; height: 4px; border-radius: 2px; background: var(--border); }
+
+.tabs {
+  display: flex;
+  flex: none;
+  border-bottom: 1px solid var(--divider);
+}
+.tab {
+  flex: 1;
+  min-height: var(--tap);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] { color: var(--scan); border-bottom-color: var(--scan); }
+
+.panel-body { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.panel-view { padding: 12px; }
+
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.panel-title { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: 1px; }
+.panel-note { margin: 4px 0; color: var(--text-3); font-size: 12px; font-family: var(--mono-font); }
+
+.empty-state { margin: 18px 0; color: var(--text-3); font-size: 13px; text-align: center; }
+
+/* ---------------------------------------------------------------- 榜单 */
+
+.flight-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.flight-list li { margin-bottom: 6px; }
+.flight-row {
+  display: block;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.flight-row[aria-current="true"] { border-color: var(--highlight); border-left-color: var(--highlight); }
+.row-line { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.row-call { font-family: var(--mono-font); font-size: 14px; font-weight: 600; }
+.row-right { color: var(--text-2); font-size: 12px; font-family: var(--mono-font); white-space: nowrap; }
+.row-sub { color: var(--text-2); font-size: 13px; }
+.row-glyph { font-family: var(--mono-font); color: var(--text-3); }
+
+.tag {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--mono-font);
+  color: var(--text-2);
+}
+.tag-widebody { border-color: var(--widebody); color: var(--widebody); }
+.tag-special { border-color: var(--highlight); color: var(--highlight); }
+.tag-ground { border-color: var(--text-3); color: var(--text-3); }
+
+/* ---------------------------------------------------------------- 详情 */
+
+.detail-body { margin-top: 8px; }
+.detail-call { margin: 0 0 2px; font-family: var(--mono-font); font-size: 20px; color: var(--scan); }
+.detail-sub { margin: 0 0 12px; color: var(--text-2); font-size: 13px; }
+.detail-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+.detail-grid dt { color: var(--text-3); }
+.detail-grid dd { margin: 0; color: var(--text); font-family: var(--mono-font); }
+.detail-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.detail-link { color: var(--scan); font-size: 13px; }
+
+/* ---------------------------------------------------------------- 设置 */
+
+.settings-group { margin: 6px 0 16px; }
+.settings-legend {
+  margin: 0 0 8px;
+  color: var(--text-3);
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: var(--tap);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--divider);
+}
+.setting-row:last-child { border-bottom: 0; }
+.setting-name { font-size: 13px; }
+.setting-value { color: var(--scan); font-family: var(--mono-font); font-size: 12px; }
+.setting-control { flex: none; width: 52%; display: flex; align-items: center; }
+.setting-control input[type="range"] { width: 100%; height: var(--tap); accent-color: var(--scan); }
+.setting-control input[type="number"] { width: 100%; min-height: var(--tap); }
+.setting-control input[type="color"] {
+  width: var(--tap);
+  height: var(--tap);
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+}
+.setting-control input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--scan); }
+.setting-stack { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+
+/* ---------------------------------------------------------------- 窄屏：雷达全屏 + 底部抽屉 */
+
+@media (max-width: 859px) {
+  body { font-size: 14px; }
+
+  .app-screen { display: block; height: 100dvh; }
+
+  .radar-pane { position: absolute; inset: 0; }
+
+  .panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: var(--sheet-h);
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
+    /* 拖拽结束后才过渡，拖动过程中要跟手 */
+    transition: height 160ms ease-out;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .panel-body { padding-bottom: env(safe-area-inset-bottom); }
+
+  .sheet-handle { display: flex; }
+
+  /* 抽屉收起时只露两行，把雷达让出来；量程控件必须抬到抽屉上方，否则被盖住 */
+  .radar-pane .range-controls,
+  .radar-pane .radar-actions { z-index: 2; }
+  .range-controls,
+  .radar-actions { bottom: calc(var(--sheet-h) + 10px + env(safe-area-inset-bottom)); }
+  /* 窄屏放不下"量程条 + 右上角按钮"并排，按钮排到量程条上面一行 */
+  .radar-actions { bottom: calc(var(--sheet-h) + 74px + env(safe-area-inset-bottom)); }
+  .range-slider { width: 76px; }
+  .range-label { min-width: 52px; }
+}
+
+@media (min-width: 860px) {
+  .sheet-handle { display: none; }
+  .panel-body { padding-bottom: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel { transition: none; }
+}

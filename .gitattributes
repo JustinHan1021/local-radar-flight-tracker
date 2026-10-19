@@ -1,0 +1,8 @@
+# 仓库内存 LF，各平台检出时按需转换——避免 Windows 提交的 CRLF 污染全仓库 diff
+* text=auto
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.pbf binary
+*.pickle binary

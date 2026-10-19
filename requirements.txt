@@ -1,0 +1,11 @@
+# 本地雷达航班追踪 · 依赖清单
+#
+# 安装：pip install -r requirements.txt
+# 主程序 main.py 启动时也会自动检测并安装缺失依赖，通常无需手动执行。
+
+# ---- 必需 ----
+PySide6>=6.6.0        # GUI 框架：窗口、自绘雷达盘、动画
+requests>=2.31.0      # HTTP：航班数据、富化信息与矢量底图下载
+numpy>=1.26.0         # 数值计算：底图坐标的向量化视口筛选
+shapely>=2.0.0        # 底图多边形裁剪：陆地填充必须保持多边形闭合
+winsdk>=1.0.0b10      # Windows 系统高精度定位 API（Geolocator）

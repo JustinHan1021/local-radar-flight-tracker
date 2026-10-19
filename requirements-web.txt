@@ -1,0 +1,12 @@
+# 服务端依赖（**不含** PySide6 / winsdk）
+#
+# 桌面版用 requirements.txt；服务端刻意分开：公网部署通常落在 Linux 上，
+# 那里装不了也不需要 PySide6（而且它会拖进几百 MB 的 Qt 运行库）。
+#
+# 安装：pip install -r requirements-web.txt
+
+aiohttp>=3.9          # HTTP 服务端（已在开发机上，故未新增安装）
+requests>=2.31.0      # 上游航班数据源
+numpy>=1.26.0         # 地形高程栅格
+shapely>=2.0.0        # 陆地/海岸线多边形
+Pillow>=10.0.0        # 底图预渲染（服务端画 PNG）

@@ -5,6 +5,7 @@
 ![aiohttp](https://img.shields.io/badge/Web-aiohttp-2C5BB4)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-0078D6)
+[![Release](https://img.shields.io/github/v/release/JustinHan1021/local-radar-flight-tracker?label=download)](https://github.com/JustinHan1021/local-radar-flight-tracker/releases/latest)
 
 > 一个**雷达风格的航班追踪器**：以你的位置为圆心，把附近的真实飞机画在圆形雷达盘上，
 > 带量程环、罗盘刻度、扫描线和机型图标。提供**桌面版**（PySide6）与**手机可用的 Web 版**，
@@ -16,8 +17,25 @@
 按航向旋转的机型剪影、扫描线扫过时目标泛出的回波。数据来自公开的社区 ADS-B 网络，
 不依赖任何商业 API key。
 
+## 直接下载（Windows，免安装）
+
+不想折腾 Python 环境的话，去
+**[Releases](https://github.com/JustinHan1021/local-radar-flight-tracker/releases/latest)**
+下载 `local-radar-flight-tracker-v1.0.0-win64.zip`，解压后双击
+`本地雷达航班追踪\本地雷达航班追踪.exe` 即可。
+
+- 压缩包 78.8 MB，解压约 202 MB，**无需安装 Python**
+- Windows 10 / 11 64 位
+- **首次运行会下载约 81 MB 数据**（陆地/海岸线、机场、城市名），之后走本地缓存
+- 未做代码签名，首次运行 Windows SmartScreen 可能提示「已保护你的电脑」，
+  点「更多信息」→「仍要运行」；也可从源码自行打包核对
+
+想跑 Web 版或改代码，见下面的[快速开始](#快速开始桌面版)。
+
+
 ## 目录
 
+- [直接下载（Windows，免安装）](#直接下载windows免安装)
 - [为什么值得一看](#为什么值得一看)
 - [界面预览](#界面预览)
 - [快速开始（桌面版）](#快速开始桌面版)
@@ -145,9 +163,15 @@ python build_exe.py               # 单文件模式
 python build_exe.py --console     # 保留控制台，排查启动问题时用
 ```
 
-产物在 `dist/本地雷达航班追踪/`，约 16 MB（不含运行时下载的 81 MB 数据）。
+产物在 `dist/本地雷达航班追踪/`，约 202 MB（不含运行时下载的 81 MB 数据）。
+发布时压成 zip 上传到 Release，而不是提交进仓库——二进制产物留在 git 历史里
+会让每次 clone 都多下载一份，改代码时也会反复堆积。
 
-两个踩过的坑，已写进脚本：
+打包脚本会主动排掉两类用不到的大块头，实测省下 129 MB：环境里装了但项目从未 import 的
+`numba` / `llvmlite`（仅 `llvmlite.dll` 就占 101.7 MB），以及 Qt 的软件 OpenGL 回退
+`opengl32sw.dll`（本程序是纯 QPainter 光栅绘制，不创建 OpenGL 上下文）。
+
+三个踩过的坑，已写进脚本：
 
 - **必须 `--collect-all numpy`**。PyInstaller 6.10 自带的 numpy hook 跟不上 numpy 2.x
   的目录布局，会漏收 `numpy/_core/_exceptions`；症状是启动即弹
@@ -155,6 +179,9 @@ python build_exe.py --console     # 保留控制台，排查启动问题时用
 - **冻结环境禁止调用 pip**。`main.py` 的依赖自检在打包后会把
   `sys.executable`（就是 exe 自己）当成 pip 启动，导致无限自我复制。
   现在是双重防护：冻结时跳过自检 + 顶层递归哨兵环境变量 `LOCAL_RADAR_CHILD`。
+- **zip 必须用正斜杠**。.NET 的 `ZipFile.CreateFromDirectory` 在 Windows 上写出的条目
+  用反斜杠分隔，不符合 zip 规范，在 macOS/Linux 解压会被平铺成一层。用 Python 的
+  `zipfile` 以 `as_posix()` 命名即可。
 
 ## 架构
 
